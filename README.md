@@ -227,44 +227,6 @@ apiStatus=FALHOU
 
 O frontend informa que os dados sao mockados para demonstracao academica.
 
-## Como demonstrar em 15 minutos
-
-1. Explicacao - 4 minutos
-   - O projeto e um painel academico para parceiros do Canal MPME.
-   - A API e voltada a agentes/parceiros, nao ao usuario final comum.
-   - Fluxo principal: React -> Controller -> Service -> Repository -> H2.
-   - Integracao externa: Service -> BndesApiClient -> API BNDES.
-
-2. Show me the code - 4 minutos
-   - Mostrar `PropostaLocal` com `@Entity` e `@Id`.
-   - Mostrar `PropostaLocalRepository extends JpaRepository`.
-   - Mostrar `PropostaService` usando `Optional`.
-   - Mostrar controllers com `ResponseEntity`.
-   - Mostrar `BndesTokenService` com `@PostConstruct` e `@Scheduled`.
-   - Mostrar `DotenvLoader` lendo `.env` e `../.env`.
-   - Mostrar `.gitignore` ignorando `.env`.
-
-3. Demonstracao pratica - 7 minutos
-   - Abrir frontend.
-   - Carregar faixas de faturamento.
-   - Carregar situacoes.
-   - Consultar propostas.
-   - Abrir detalhes de uma proposta.
-   - Registrar atualizacao em modo demonstracao.
-   - Cadastrar proposta local.
-   - Editar proposta local.
-   - Excluir proposta local.
-   - Abrir H2 Console e mostrar `CONSULTA_API_LOG`, `PROPOSTA_LOCAL`, `ATUALIZACAO_PROPOSTA_LOG`.
-   - Buscar ID inexistente e mostrar 404 amigavel.
-
-## Converter documentacao em PDF
-
-O ambiente atual nao possui `pandoc`. Para gerar o PDF depois:
-
-```bash
-pandoc docs/Documentacao-Painel-Propostas-BNDES.md -o docs/Documentacao-Painel-Propostas-BNDES.pdf
-```
-
 ## Limitacoes honestas
 
 - Endpoints reais dependem de credenciais, autorizacao e escopos do BNDES.
