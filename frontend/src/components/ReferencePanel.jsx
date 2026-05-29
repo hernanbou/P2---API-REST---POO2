@@ -45,14 +45,14 @@ export default function ReferencePanel({ faixas, situacoes, loading, message, on
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-4">
+        <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-4 overflow-x-auto">
           <h3 className="text-sm font-semibold text-slate-800">Situacoes</h3>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {situacoes.length === 0 ? (
               <p className="text-sm text-slate-500">Nenhuma situacao carregada.</p>
             ) : (
               situacoes.map((situacao) => (
-                <span key={situacao.situacaoProposta || situacao.codigo} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                <span key={situacao.situacaoProposta || situacao.codigo} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 overflow-x-auto">
                   {situacao.situacaoProposta || situacao.nome}
                 </span>
               ))

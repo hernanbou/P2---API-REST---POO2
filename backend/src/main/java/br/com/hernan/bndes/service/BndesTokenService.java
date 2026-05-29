@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Map;
@@ -36,10 +37,11 @@ public class BndesTokenService {
     @Value("${API_SECRET:}")
     private String apiSecret;
 
-    @Value("${bndes.api.token-url}")
+    // Compatibilidade com o .env atual e com nomes antigos em application.properties/application.yml.
+    @Value("${BNDES_TOKEN_URL:${bndes.api.token-url:https://apis-gateway.bndes.gov.br/token}}")
     private String tokenUrl;
 
-    @Value("${bndes.auth.refresh-rate-ms:3600000}")
+    @Value("${BNDES_TOKEN_REFRESH_RATE_MS:${bndes.auth.refresh-rate-ms:3600000}}")
     private long refreshRateMs;
 
     private volatile String accessToken;
@@ -52,11 +54,20 @@ public class BndesTokenService {
 
     @PostConstruct
     public void gerarTokenAoIniciar() {
+        log.info(
+                "Configuracao BNDES carregada. API_KEY presente: {} ({} chars). API_SECRET presente: {} ({} chars). Token URL: {}",
+                hasText(apiKey),
+                safeLength(apiKey),
+                hasText(apiSecret),
+                safeLength(apiSecret),
+                tokenUrl
+        );
+
         // O token fica somente no backend: o frontend nunca precisa conhecer credenciais ou Authorization Bearer.
         renovarToken("startup");
     }
 
-    @Scheduled(fixedDelayString = "${bndes.auth.refresh-rate-ms:3600000}")
+    @Scheduled(fixedDelayString = "${BNDES_TOKEN_REFRESH_RATE_MS:${bndes.auth.refresh-rate-ms:3600000}}")
     public void renovarTokenAgendado() {
         // A API informa expiracao aproximada de 1 hora; renovar automaticamente evita falhas durante a apresentacao.
         renovarToken("scheduled");
@@ -70,14 +81,26 @@ public class BndesTokenService {
     }
 
     public TokenStatusResponse status() {
-        LocalDateTime proxima = ultimaRenovacao == null ? null : ultimaRenovacao.plusNanos(refreshRateMs * 1_000_000);
+        LocalDateTime proxima = ultimaRenovacao == null ? null : ultimaRenovacao.plus(Duration.ofMillis(refreshRateMs));
         return new TokenStatusResponse(accessToken != null && !accessToken.isBlank(), ultimaRenovacao, proxima, ultimaMensagem);
     }
 
     private synchronized void renovarToken(String origem) {
-        if (apiKey == null || apiKey.isBlank() || apiSecret == null || apiSecret.isBlank()) {
+        String consumerKey = normalize(apiKey);
+        String consumerSecret = normalize(apiSecret);
+        String url = normalize(tokenUrl);
+
+        // Nao validar tamanho fixo. Consumer Key/Secret do BNDES podem ter tamanho diferente de 32 caracteres.
+        if (consumerKey.isBlank() || consumerSecret.isBlank()) {
             accessToken = null;
             ultimaMensagem = "API_KEY/API_SECRET nao configurados. Configure o .env para chamadas autenticadas.";
+            log.warn("{}: {}", origem, ultimaMensagem);
+            return;
+        }
+
+        if (url.isBlank()) {
+            accessToken = null;
+            ultimaMensagem = "BNDES_TOKEN_URL nao configurada. Configure a URL de geracao de token no .env.";
             log.warn("{}: {}", origem, ultimaMensagem);
             return;
         }
@@ -87,10 +110,10 @@ public class BndesTokenService {
             form.add("grant_type", "client_credentials");
 
             String basic = Base64.getEncoder()
-                    .encodeToString((apiKey + ":" + apiSecret).getBytes(StandardCharsets.UTF_8));
+                    .encodeToString((consumerKey + ":" + consumerSecret).getBytes(StandardCharsets.UTF_8));
 
             ResponseEntity<Map<String, Object>> response = restClient.post()
-                    .uri(tokenUrl)
+                    .uri(url)
                     .header(HttpHeaders.AUTHORIZATION, "Basic " + basic)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .accept(MediaType.APPLICATION_JSON)
@@ -104,10 +127,11 @@ public class BndesTokenService {
             if (token == null || token.toString().isBlank()) {
                 accessToken = null;
                 ultimaMensagem = "Resposta de token recebida sem access_token.";
-                log.warn(ultimaMensagem);
+                log.warn("{}: {}", origem, ultimaMensagem);
                 return;
             }
 
+            // Nao validar tamanho fixo do token. O backend deve aceitar qualquer access_token nao vazio retornado pela API.
             accessToken = token.toString();
             ultimaRenovacao = LocalDateTime.now();
             ultimaMensagem = "Token renovado com sucesso pelo backend.";
@@ -123,10 +147,24 @@ public class BndesTokenService {
         }
     }
 
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isBlank();
+    }
+
+    private int safeLength(String value) {
+        return value == null ? 0 : value.trim().length();
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
     private String resumo(String value) {
         if (value == null) {
             return "";
         }
-        return value.length() > 500 ? value.substring(0, 500) : value;
+
+        String sanitized = value.replaceAll("(?i)(\\\"access_token\\\"\\s*:\\s*\\\")[^\\\"]+(\\\")", "$1<redacted>$2");
+        return sanitized.length() > 500 ? sanitized.substring(0, 500) : sanitized;
     }
 }

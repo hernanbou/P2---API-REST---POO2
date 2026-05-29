@@ -13,7 +13,7 @@ export default function LogsPanel({ consultas, atualizacoes, propostas }) {
   const [active, setActive] = React.useState('consultas')
 
   return (
-    <section className="card p-5">
+    <section className="card p-5 overflow-x-auto">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-950">Historico local</h2>
